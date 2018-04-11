@@ -7,7 +7,10 @@ defmodule FetchFavicon.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description: description(),
+      package: package(),
+      source_url: "https://github.com/ZakMiller/fetch-favicon"
     ]
   end
 
@@ -25,6 +28,19 @@ defmodule FetchFavicon.MixProject do
       {:floki, "~> 0.20.0"},
       # For testing
       {:mock, "~> 0.3.0", only: :test}
+    ]
+  end
+
+  defp description do
+    "Fetch a favicon with multiple fallbacks, returning the image itself."
+  end
+
+  defp package() do
+    [
+      name: "FetchFavicon",
+      maintainers: ["Zak Miller"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/ZakMiller/fetch-favicon"}
     ]
   end
 end

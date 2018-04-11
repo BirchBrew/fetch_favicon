@@ -1,6 +1,6 @@
 # fetch-favicon
 
-Fetch a Favicon with multiple fallbacks.
+Fetch a favicon with multiple fallbacks.
 
 For `example.com` it will first try `example.com/favicon.ico`, then it will try to find the icon file path in the HTML, and if it does, try to fetch that icon. If both fail, then it will query `https://www.google.com/s2/favicons?domain=example.com`
 
