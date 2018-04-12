@@ -33,13 +33,13 @@ defmodule FetchFaviconTest do
     with_mock HTTPoison,
       get: fn url, _, _ ->
         case url do
-          "reddit.com/favicon.ico" ->
+          "http://reddit.com/favicon.ico" ->
             nil
 
-          "reddit.com" ->
+          "http://reddit.com" ->
             {:ok, base_site_response}
 
-          "reddit.com/custom/reddit/ico/path/icon.ico" ->
+          "http://reddit.com/custom/reddit/ico/path/icon.ico" ->
             {:ok, image_response}
 
           _ ->
@@ -47,6 +47,50 @@ defmodule FetchFaviconTest do
         end
       end do
       assert {:ok, _} = FetchFavicon.fetch("reddit.com")
+    end
+  end
+
+  test "trailing slash" do
+    response = %HTTPoison.Response{
+      body: "<html></html>",
+      headers: [],
+      request_url: "",
+      status_code: 200
+    }
+
+    with_mock HTTPoison,
+      get: fn url, _, _ ->
+        case url do
+          "http://reddit.com/favicon.ico" ->
+            {:ok, response}
+
+          _ ->
+            nil
+        end
+      end do
+      assert {:ok, _} = FetchFavicon.fetch("reddit.com/")
+    end
+  end
+
+  test "www" do
+    response = %HTTPoison.Response{
+      body: "<html></html>",
+      headers: [],
+      request_url: "",
+      status_code: 200
+    }
+
+    with_mock HTTPoison,
+      get: fn url, _, _ ->
+        case url do
+          "http://www.reddit.com/favicon.ico" ->
+            {:ok, response}
+
+          _ ->
+            nil
+        end
+      end do
+      assert {:ok, _} = FetchFavicon.fetch("www.reddit.com/")
     end
   end
 
@@ -61,10 +105,10 @@ defmodule FetchFaviconTest do
     with_mock HTTPoison,
       get: fn url, _, _ ->
         case url do
-          "reddit.com/favicon.ico" ->
+          "http://reddit.com/favicon.ico" ->
             nil
 
-          "reddit.com" ->
+          "http://reddit.com" ->
             {:ok, response}
 
           _ ->
@@ -86,10 +130,10 @@ defmodule FetchFaviconTest do
     with_mock HTTPoison,
       get: fn url, _, _ ->
         case url do
-          "reddit.com/favicon.ico" ->
+          "http://reddit.com/favicon.ico" ->
             nil
 
-          "reddit.com" ->
+          "http://reddit.com" ->
             {:ok, response}
 
           _ ->
@@ -111,13 +155,13 @@ defmodule FetchFaviconTest do
     with_mock HTTPoison,
       get: fn url, _, _ ->
         case url do
-          "reddit.com/favicon.ico" ->
+          "http://reddit.com/favicon.ico" ->
             nil
 
-          "reddit.com" ->
+          "http://reddit.com" ->
             nil
 
-          "https://www.google.com/s2/favicons?domain=reddit.com" ->
+          "https://www.google.com/s2/favicons?domain=http://reddit.com" ->
             {:ok, response}
 
           _ ->

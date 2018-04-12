@@ -27,7 +27,8 @@ defmodule FetchFavicon.MixProject do
       # HTML Parser
       {:floki, "~> 0.20.0"},
       # For testing
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
 
@@ -37,7 +38,6 @@ defmodule FetchFavicon.MixProject do
 
   defp package() do
     [
-      name: "FetchFavicon",
       maintainers: ["Zak Miller"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/ZakMiller/fetch-favicon"}

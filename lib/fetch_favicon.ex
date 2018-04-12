@@ -2,7 +2,7 @@ defmodule FetchFavicon do
   @user_agent_pls_no_fbi "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0"
   @timeout_ms 3_000
   @moduledoc """
-  Documentation for FetchFavicon.
+  Used to retrieve a favicon from a website.
   """
 
   @doc """
@@ -11,10 +11,14 @@ defmodule FetchFavicon do
   Then it tries to find a path to an icon in the HTML and then fetch that.
   Lastly it uses the google favicon service to retrieve a favicon.
 
+  If you do not pass `http://` or `https://`, `http://` is assumed.
+
   Returns `{:ok, image}` if successful and `{:error, "failed to find image"}` if unsuccessful.
 
   """
   def fetch(url) do
+    url = get_absolute_path(url)
+
     case fetch_default(url) || fetch_from_html(url) || fetch_from_google(url) do
       {:ok, image} -> {:ok, image}
       _ -> {:error, "failed to find image"}
@@ -22,13 +26,14 @@ defmodule FetchFavicon do
   end
 
   defp fetch_default(url) do
-    fetch_html("#{url}/favicon.ico")
+    favicon_url = URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
+    fetch_html(favicon_url)
   end
 
   defp fetch_from_html(url) do
     with {:ok, body} <- fetch_html(url),
          {:ok, icon_path} <- get_icon_path_html(body),
-         path = get_absolute_path(url, icon_path) do
+         path = get_absolute_image_path(url, icon_path) do
       fetch_html(path)
     else
       _ -> nil
@@ -40,37 +45,40 @@ defmodule FetchFavicon do
     fetch_html(google_favicon_url)
   end
 
-  defp get_absolute_path(url, icon_path) do
+  defp get_absolute_image_path(url, icon_path) do
     case icon_path do
-      "/" <> _ -> url <> icon_path
+      "/" <> _ -> URI.merge(url, icon_path) |> to_string()
       _ -> icon_path
     end
   end
 
   defp get_icon_path_html(body) do
     case Floki.find(body, "link[rel*=icon]") do
-      link = [_ | _] ->
-        content = Floki.attribute(link, "href")
-        {:ok, hd(content)}
-
-      _ ->
+      [] ->
         nil
+
+      links ->
+        [first_favicon_link | _others] = Floki.attribute(links, "href")
+        {:ok, first_favicon_link}
     end
   end
 
   defp fetch_html(url) do
-    with {:ok, content} <-
-           HTTPoison.get(
-             url,
-             %{"User-Agent" => @user_agent_pls_no_fbi},
-             recv_timeout: @timeout_ms,
-             follow_redirect: true
-           ),
-         200 <- Map.get(content, :status_code) do
-      image = Map.get(content, :body)
-      {:ok, image}
-    else
+    case HTTPoison.get(
+           url,
+           %{"User-Agent" => @user_agent_pls_no_fbi},
+           recv_timeout: @timeout_ms,
+           follow_redirect: true
+         ) do
+      {:ok, %{status_code: 200, body: body}} -> {:ok, body}
       _ -> nil
+    end
+  end
+
+  defp get_absolute_path(url) do
+    case URI.parse(url) do
+      %{host: nil, path: path} -> "http://#{path}"
+      _ -> url
     end
   end
 end
