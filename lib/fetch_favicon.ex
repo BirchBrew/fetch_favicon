@@ -27,14 +27,14 @@ defmodule FetchFavicon do
 
   defp fetch_default(url) do
     favicon_url = URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
-    fetch_html(favicon_url)
+    get_image_from_url(favicon_url)
   end
 
   defp fetch_from_html(url) do
-    with {:ok, body} <- fetch_html(url),
+    with {:ok, body} <- get_html_from_url(url),
          {:ok, icon_path} <- get_icon_path_html(body),
          path = get_absolute_image_path(url, icon_path) do
-      fetch_html(path)
+      get_image_from_url(path)
     else
       _ -> nil
     end
@@ -42,7 +42,7 @@ defmodule FetchFavicon do
 
   defp fetch_from_google(url) do
     google_favicon_url = "https://www.google.com/s2/favicons?domain=#{url}"
-    fetch_html(google_favicon_url)
+    get_image_from_url(google_favicon_url)
   end
 
   defp get_absolute_image_path(url, icon_path) do
@@ -63,14 +63,45 @@ defmodule FetchFavicon do
     end
   end
 
-  defp fetch_html(url) do
-    case HTTPoison.get(
-           url,
-           %{"User-Agent" => @user_agent_pls_no_fbi},
-           recv_timeout: @timeout_ms,
-           follow_redirect: true
-         ) do
-      {:ok, %{status_code: 200, body: body}} -> {:ok, body}
+  defp get_image_from_url(url) do
+    case get_html(url) do
+      {:ok, response} ->
+        %HTTPoison.Response{body: body, headers: headers_list} = response
+
+        case Enum.into(headers_list, %{}) do
+          %{"Content-Type" => "image" <> _} -> {:ok, body}
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp get_html_from_url(url) do
+    case get_html(url) do
+      {:ok, response} ->
+        %HTTPoison.Response{body: body, headers: headers_list} = response
+
+        case Enum.into(headers_list, %{}) do
+          %{"Content-Type" => "text/html" <> _} -> {:ok, body}
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp get_html(url) do
+    case {_code, response} =
+           HTTPoison.get(
+             url,
+             %{"User-Agent" => @user_agent_pls_no_fbi},
+             recv_timeout: @timeout_ms,
+             follow_redirect: true
+           ) do
+      {:ok, %{status_code: 200}} -> {:ok, response}
       _ -> nil
     end
   end
