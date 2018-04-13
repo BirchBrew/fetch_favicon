@@ -17,9 +17,9 @@ defmodule FetchFavicon do
 
   """
   def fetch(url) do
-    url = get_absolute_path(url)
+    absolute_url = get_absolute_path(url)
 
-    case fetch_default(url) || fetch_from_html(url) || fetch_from_google(url) do
+    case fetch_default(absolute_url) || fetch_from_html(absolute_url) || fetch_from_google(url) do
       {:ok, image} -> {:ok, image}
       _ -> {:error, "failed to find image"}
     end
@@ -59,8 +59,20 @@ defmodule FetchFavicon do
 
       links ->
         [first_favicon_link | _others] = Floki.attribute(links, "href")
-        {:ok, first_favicon_link}
+        confirm_valid_path(first_favicon_link)
     end
+  end
+
+  defp confirm_valid_path(text) do
+    case is_valid_path(text) do
+      true -> {:ok, text}
+      false -> {:error, "invalid path"}
+    end
+  end
+
+  defp is_valid_path(text) do
+    # Very very rough "good enough" check.
+    (text =~ ":" || text =~ ";") == false
   end
 
   defp get_image_from_url(url) do
@@ -69,8 +81,12 @@ defmodule FetchFavicon do
         %HTTPoison.Response{body: body, headers: headers_list} = response
 
         case Enum.into(headers_list, %{}) do
-          %{"Content-Type" => "image" <> _} -> {:ok, body}
-          _ -> nil
+          %{"Content-Type" => "image" <> _}
+          when body != "" ->
+            {:ok, body}
+
+          _ ->
+            nil
         end
 
       _ ->
