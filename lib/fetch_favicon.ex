@@ -77,16 +77,14 @@ defmodule FetchFavicon do
 
   defp get_image_from_url(url) do
     case get_html(url) do
-      {:ok, response} ->
-        %HTTPoison.Response{body: body, headers: headers_list} = response
+      {:ok, %HTTPoison.Response{body: ""}} ->
+        nil
 
+      {:ok, %HTTPoison.Response{body: body, headers: headers_list}} ->
         case Enum.into(headers_list, %{}) do
-          %{"Content-Type" => "image" <> _}
-          when body != "" ->
-            {:ok, body}
-
-          _ ->
-            nil
+          %{"Content-Encoding" => _encoding} -> nil
+          %{"Content-Type" => "image" <> _} -> {:ok, body}
+          _ -> nil
         end
 
       _ ->

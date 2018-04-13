@@ -94,6 +94,32 @@ defmodule FetchFaviconTest do
     end
   end
 
+  test "has encoding" do
+    response = %HTTPoison.Response{
+      body: "<html></html>",
+      headers: [
+        {"Content-Type", "text/html; charset=utf-8"},
+        {"Content-Length", "non zero"},
+        {"Content-Encoding", "gzip"}
+      ],
+      request_url: "",
+      status_code: 200
+    }
+
+    with_mock HTTPoison,
+      get: fn url, _, _ ->
+        case url do
+          "http://reddit.com/favicon.ico" ->
+            {:ok, response}
+
+          _ ->
+            {:error, "error message"}
+        end
+      end do
+      assert {:error, _} = FetchFavicon.fetch("reddit.com/")
+    end
+  end
+
   test "content length 0" do
     response = %HTTPoison.Response{
       body: "",
