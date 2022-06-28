@@ -16,33 +16,62 @@ defmodule FetchFavicon do
   Returns `{:ok, image}` if successful and `{:error, "failed to find image"}` if unsuccessful.
 
   """
+
+  @doc """
+  Fetch the binary contents of a favicon file for a domain
+  """
   def fetch(url) do
     absolute_url = get_absolute_path(url)
 
-    case fetch_default(absolute_url) || fetch_from_html(absolute_url) || fetch_from_google(url) do
-      {:ok, image} -> {:ok, image}
-      _ -> {:error, "failed to find image"}
+    with {:ok, image} <- fetch_default(absolute_url) || fetch_from_html(absolute_url) || fetch_from_google(url) do
+      {:ok, image}
+    else _ ->
+      {:error, "failed to find image"}
     end
   end
 
-  defp fetch_default(url) do
-    favicon_url = URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
-    get_image_from_url(favicon_url)
+  @doc """
+  Find a favicon URL (or fetch its binary contents)
+  Parses an HTML page and tries to find a favicon in it (if provided), and otherwise tries to fetch one
+  """
+  def find(url, html_body, fetch? \\ false) do
+    absolute_url = get_absolute_path(url)
+
+    with {:ok, image_or_url} <- parse(url, html_body, fetch?) || fetch_default(absolute_url, fetch?) || fetch_from_html(absolute_url, fetch?) || fetch_from_google(url, fetch?) do
+      {:ok, image_or_url}
+    else _ ->
+      {:error, "failed to find image"}
+    end
   end
 
-  defp fetch_from_html(url) do
-    with {:ok, body} <- get_html_from_url(url),
-         {:ok, icon_path} <- get_icon_path_html(body),
+  @doc """
+  Parses an HTML page and tries to find a favicon URL in it
+  """
+  def parse(url, html_body, fetch? \\ false) do
+    with {:ok, icon_path} <- get_icon_path_html(html_body),
          path = get_absolute_image_path(url, icon_path) do
-      get_image_from_url(path)
+      check_url(path, fetch?)
     else
       _ -> nil
     end
   end
 
-  defp fetch_from_google(url) do
+  defp fetch_default(url, fetch? \\ true) do
+    favicon_url = URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
+    check_url(favicon_url, fetch?)
+  end
+
+  defp fetch_from_html(url, fetch? \\ true) do
+    with {:ok, body} <- get_html_from_url(url) do
+      parse(url, body, fetch?)
+    else
+      _ -> nil
+    end
+  end
+
+  defp fetch_from_google(url, fetch? \\ true) do
     google_favicon_url = "https://www.google.com/s2/favicons?domain=#{url}"
-    get_image_from_url(google_favicon_url)
+    check_url(google_favicon_url, fetch?)
   end
 
   defp get_absolute_image_path(url, icon_path) do
@@ -75,6 +104,9 @@ defmodule FetchFavicon do
     (text =~ ":" || text =~ ";") == false
   end
 
+  defp check_url(url, _fetch? = true), do: get_image_from_url(url)
+  defp check_url(url, _), do: get_valid_image_url(url)
+
   defp get_image_from_url(url) do
     case get_html(url) do
       {:ok, %HTTPoison.Response{body: ""}} ->
@@ -84,6 +116,20 @@ defmodule FetchFavicon do
         case Enum.into(headers_list, %{}) do
           %{"Content-Encoding" => _encoding} -> nil
           %{"Content-Type" => "image" <> _} -> {:ok, body}
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp get_valid_image_url(url) do
+    case get_headers(url) do
+
+      {:ok, %HTTPoison.Response{headers: headers_list}} ->
+        case Enum.into(headers_list, %{}) do
+          %{"Content-Type" => "image" <> _} -> {:ok, url}
           _ -> nil
         end
 
@@ -110,6 +156,19 @@ defmodule FetchFavicon do
   defp get_html(url) do
     case {_code, response} =
            HTTPoison.get(
+             url,
+             %{"User-Agent" => @user_agent_pls_no_fbi},
+             recv_timeout: @timeout_ms,
+             follow_redirect: true
+           ) do
+      {:ok, %{status_code: 200}} -> {:ok, response}
+      _ -> nil
+    end
+  end
+
+  defp get_headers(url) do
+    case {_code, response} =
+           HTTPoison.head(
              url,
              %{"User-Agent" => @user_agent_pls_no_fbi},
              recv_timeout: @timeout_ms,
