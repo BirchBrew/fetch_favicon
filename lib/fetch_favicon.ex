@@ -74,13 +74,6 @@ defmodule FetchFavicon do
     check_url(google_favicon_url, fetch?)
   end
 
-  defp get_absolute_image_path(url, icon_path) do
-    case icon_path do
-      "/" <> _ -> URI.merge(url, icon_path) |> to_string()
-      _ -> icon_path
-    end
-  end
-
   defp get_icon_path_html(body) do
     case Floki.find(body, "link[rel*=icon]") do
       [] ->
@@ -154,28 +147,45 @@ defmodule FetchFavicon do
   end
 
   defp get_html(url) do
-    case {_code, response} =
+    if full_uri?(url) do
+      case {_code, response} =
            HTTPoison.get(
              url,
              %{"User-Agent" => @user_agent_pls_no_fbi},
              recv_timeout: @timeout_ms,
              follow_redirect: true
            ) do
-      {:ok, %{status_code: 200}} -> {:ok, response}
-      _ -> nil
+        {:ok, %{status_code: 200}} -> {:ok, response}
+        _ -> nil
+      end
     end
   end
 
   defp get_headers(url) do
-    case {_code, response} =
+    if full_uri?(url) do
+      case {_code, response} =
            HTTPoison.head(
              url,
              %{"User-Agent" => @user_agent_pls_no_fbi},
              recv_timeout: @timeout_ms,
              follow_redirect: true
            ) do
-      {:ok, %{status_code: 200}} -> {:ok, response}
-      _ -> nil
+        {:ok, %{status_code: 200}} -> {:ok, response}
+        _ -> nil
+      end
+    end
+  end
+
+  defp get_absolute_image_path(url, icon_path) do
+    case URI.parse(url) do
+      %{scheme: nil} -> icon_path
+      %{host: nil} -> icon_path
+      _ ->
+        case URI.parse(icon_path) do
+          %{scheme: nil} -> URI.merge(url, icon_path) |> to_string()
+          %{host: nil} -> URI.merge(url, icon_path) |> to_string()
+          _ -> icon_path
+        end
     end
   end
 
@@ -183,6 +193,14 @@ defmodule FetchFavicon do
     case URI.parse(url) do
       %{host: nil, path: path} -> "http://#{path}"
       _ -> url
+    end
+  end
+
+  defp full_uri?(url) do
+    case URI.parse(url) do
+      %{scheme: nil} -> false
+      %{host: nil} -> false
+      _ -> true
     end
   end
 end
