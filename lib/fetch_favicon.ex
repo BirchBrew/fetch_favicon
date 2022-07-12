@@ -32,10 +32,11 @@ defmodule FetchFavicon do
 
   @doc """
   Find a favicon URL (or fetch its binary contents)
-  Parses an HTML page and tries to find a favicon in it (if provided), and otherwise tries to fetch one
+  Parses an HTML page and tries to find a favicon in it (if provided), and otherwise tries other techniques
   """
   def find(url, html_body, fetch? \\ false) do
     absolute_url = get_absolute_path(url)
+    # IO.inspect(html_body)
 
     with {:ok, image_or_url} <- parse(url, html_body, fetch?) || fetch_default(absolute_url, fetch?) || fetch_from_html(absolute_url, fetch?) || fetch_from_google(url, fetch?) do
       {:ok, image_or_url}
@@ -48,9 +49,9 @@ defmodule FetchFavicon do
   Parses an HTML page and tries to find a favicon URL in it
   """
   def parse(url, html_body, fetch? \\ false) do
-    with {:ok, icon_path} <- get_icon_path_html(html_body),
-         path = get_absolute_image_path(url, icon_path) do
-      check_url(path, fetch?)
+    with icon_path when is_binary(icon_path) <- get_icon_path_html(html_body) do
+      get_absolute_image_path(url, icon_path)
+      |> check_url(fetch?)
     else
       _ -> nil
     end
@@ -75,26 +76,26 @@ defmodule FetchFavicon do
   end
 
   defp get_icon_path_html(body) do
-    case Floki.find(body, "link[rel*=icon]") do
+    case Floki.find(body, "link[rel=icon]") do
       [] ->
-        nil
+
+        case Floki.find(body, "link[rel*=icon]") do
+          [] ->
+            nil
+
+          links ->
+            first_icon_from_links(links)
+        end
 
       links ->
-        [first_favicon_link | _others] = Floki.attribute(links, "href")
-        confirm_valid_path(first_favicon_link)
+        first_icon_from_links(links)
     end
   end
 
-  defp confirm_valid_path(text) do
-    case is_valid_path(text) do
-      true -> {:ok, text}
-      false -> {:error, "invalid path"}
-    end
-  end
-
-  defp is_valid_path(text) do
-    # Very very rough "good enough" check.
-    (text =~ ":" || text =~ ";") == false
+  defp first_icon_from_links(links) do
+    Floki.attribute(links, "href")
+    |> List.first()
+    # |> IO.inspect(label: "first_icon_from_links")
   end
 
   defp check_url(url, _fetch? = true), do: get_image_from_url(url)
@@ -121,10 +122,12 @@ defmodule FetchFavicon do
     case get_headers(url) do
 
       {:ok, %HTTPoison.Response{headers: headers_list}} ->
+        # IO.inspect(headers_list)
         case Enum.into(headers_list, %{}) do
           %{"Content-Type" => "image" <> _} -> {:ok, url}
           _ -> nil
         end
+        # |> IO.inspect(label: "get_valid_image_url")
 
       _ ->
         nil
