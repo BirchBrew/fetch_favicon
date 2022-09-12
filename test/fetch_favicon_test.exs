@@ -18,14 +18,20 @@ defmodule FetchFaviconTest do
   test "first call fails" do
     base_site_response = %HTTPoison.Response{
       body: "<html><link href=\"/custom/reddit/ico/path/icon.ico\" rel=\"shortcut icon\"></html>",
-      headers: [{"Content-Type", "text/html; charset=UTF-8"}, {"Content-Length", "non zero"}],
+      headers: [
+        {"Content-Type", "text/html; charset=UTF-8"},
+        {"Content-Length", "non zero"}
+      ],
       request_url: "",
       status_code: 200
     }
 
     image_response = %HTTPoison.Response{
       body: "some valid image",
-      headers: [{"Content-Type", "image/x-icon"}, {"Content-Length", "non zero"}],
+      headers: [
+        {"Content-Type", "image/x-icon"},
+        {"Content-Length", "non zero"}
+      ],
       request_url: "",
       status_code: 200
     }
@@ -53,7 +59,10 @@ defmodule FetchFaviconTest do
   test "trailing slash" do
     response = %HTTPoison.Response{
       body: "<html></html>",
-      headers: [{"Content-Type", "image/x-icon"}, {"Content-Length", "non zero"}],
+      headers: [
+        {"Content-Type", "image/x-icon"},
+        {"Content-Length", "non zero"}
+      ],
       request_url: "",
       status_code: 200
     }
@@ -75,7 +84,10 @@ defmodule FetchFaviconTest do
   test "not image" do
     response = %HTTPoison.Response{
       body: "<html></html>",
-      headers: [{"Content-Type", "text/html; charset=utf-8"}, {"Content-Length", "non zero"}],
+      headers: [
+        {"Content-Type", "text/html; charset=utf-8"},
+        {"Content-Length", "non zero"}
+      ],
       request_url: "",
       status_code: 200
     }
@@ -199,7 +211,10 @@ defmodule FetchFaviconTest do
   test "first and second calls fail" do
     response = %HTTPoison.Response{
       body: "image",
-      headers: [{"Content-Type", "image/x-icon"}, {"Content-Length", "non zero"}],
+      headers: [
+        {"Content-Type", "image/x-icon"},
+        {"Content-Length", "non zero"}
+      ],
       request_url: "",
       status_code: 200
     }

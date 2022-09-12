@@ -23,10 +23,13 @@ defmodule FetchFavicon do
   def fetch(url) do
     absolute_url = get_absolute_path(url)
 
-    with {:ok, image} <- fetch_default(absolute_url) || fetch_from_html(absolute_url) || fetch_from_google(url) do
+    with {:ok, image} <-
+           fetch_default(absolute_url) || fetch_from_html(absolute_url) ||
+             fetch_from_google(url) do
       {:ok, image}
-    else _ ->
-      {:error, "failed to find image"}
+    else
+      _ ->
+        {:error, "failed to find image"}
     end
   end
 
@@ -38,10 +41,14 @@ defmodule FetchFavicon do
     absolute_url = get_absolute_path(url)
     # IO.inspect(html_body)
 
-    with {:ok, image_or_url} <- parse(url, html_body, fetch?) || fetch_default(absolute_url, fetch?) || fetch_from_html(absolute_url, fetch?) || fetch_from_google(url, fetch?) do
+    with {:ok, image_or_url} <-
+           parse(url, html_body, fetch?) || fetch_default(absolute_url, fetch?) ||
+             fetch_from_html(absolute_url, fetch?) ||
+             fetch_from_google(url, fetch?) do
       {:ok, image_or_url}
-    else _ ->
-      {:error, "failed to find image"}
+    else
+      _ ->
+        {:error, "failed to find image"}
     end
   end
 
@@ -78,7 +85,6 @@ defmodule FetchFavicon do
   defp get_icon_path_html(body) do
     case Floki.find(body, "link[rel=icon]") do
       [] ->
-
         case Floki.find(body, "link[rel*=icon]") do
           [] ->
             nil
@@ -95,6 +101,7 @@ defmodule FetchFavicon do
   defp first_icon_from_links(links) do
     Floki.attribute(links, "href")
     |> List.first()
+
     # |> IO.inspect(label: "first_icon_from_links")
   end
 
@@ -120,14 +127,14 @@ defmodule FetchFavicon do
 
   defp get_valid_image_url(url) do
     case get_headers(url) do
-
       {:ok, %HTTPoison.Response{headers: headers_list}} ->
         # IO.inspect(headers_list)
         case Enum.into(headers_list, %{}) do
           %{"Content-Type" => "image" <> _} -> {:ok, url}
           _ -> nil
         end
-        # |> IO.inspect(label: "get_valid_image_url")
+
+      # |> IO.inspect(label: "get_valid_image_url")
 
       _ ->
         nil
@@ -152,12 +159,12 @@ defmodule FetchFavicon do
   defp get_html(url) do
     if full_uri?(url) do
       case {_code, response} =
-           HTTPoison.get(
-             url,
-             %{"User-Agent" => @user_agent_pls_no_fbi},
-             recv_timeout: @timeout_ms,
-             follow_redirect: true
-           ) do
+             HTTPoison.get(
+               url,
+               %{"User-Agent" => @user_agent_pls_no_fbi},
+               recv_timeout: @timeout_ms,
+               follow_redirect: true
+             ) do
         {:ok, %{status_code: 200}} -> {:ok, response}
         _ -> nil
       end
@@ -167,12 +174,12 @@ defmodule FetchFavicon do
   defp get_headers(url) do
     if full_uri?(url) do
       case {_code, response} =
-           HTTPoison.head(
-             url,
-             %{"User-Agent" => @user_agent_pls_no_fbi},
-             recv_timeout: @timeout_ms,
-             follow_redirect: true
-           ) do
+             HTTPoison.head(
+               url,
+               %{"User-Agent" => @user_agent_pls_no_fbi},
+               recv_timeout: @timeout_ms,
+               follow_redirect: true
+             ) do
         {:ok, %{status_code: 200}} -> {:ok, response}
         _ -> nil
       end
@@ -181,8 +188,12 @@ defmodule FetchFavicon do
 
   defp get_absolute_image_path(url, icon_path) do
     case URI.parse(url) do
-      %{scheme: nil} -> icon_path
-      %{host: nil} -> icon_path
+      %{scheme: nil} ->
+        icon_path
+
+      %{host: nil} ->
+        icon_path
+
       _ ->
         case URI.parse(icon_path) do
           %{scheme: nil} -> URI.merge(url, icon_path) |> to_string()
