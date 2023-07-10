@@ -1,5 +1,6 @@
 defmodule FetchFavicon do
-  @user_agent_pls_no_fbi "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0"
+  import Untangle
+  @user_agent "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0"
   @timeout_ms 3_000
   @moduledoc """
   Used to retrieve a favicon from a website.
@@ -28,8 +29,8 @@ defmodule FetchFavicon do
              fetch_from_google(url) do
       {:ok, image}
     else
-      _ ->
-        {:error, "failed to find image"}
+      e ->
+        error(e, "failed to find favicon for #{url}")
     end
   end
 
@@ -161,7 +162,7 @@ defmodule FetchFavicon do
       case {_code, response} =
              HTTPoison.get(
                url,
-               %{"User-Agent" => @user_agent_pls_no_fbi},
+               %{"User-Agent" => @user_agent},
                recv_timeout: @timeout_ms,
                follow_redirect: true
              ) do
@@ -176,7 +177,7 @@ defmodule FetchFavicon do
       case {_code, response} =
              HTTPoison.head(
                url,
-               %{"User-Agent" => @user_agent_pls_no_fbi},
+               %{"User-Agent" => @user_agent},
                recv_timeout: @timeout_ms,
                follow_redirect: true
              ) do
