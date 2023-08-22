@@ -4,43 +4,42 @@ defmodule FetchFaviconTest do
   import Mock
 
   test "invalid html returned" do
-    with_mock HTTPoison, get: fn _, _, _ -> {:ok, ""} end do
+    with_mock Req, get: fn  url, _ -> {:ok, ""} end do
       assert {:error, _} = FetchFavicon.fetch("reddit.com")
     end
   end
 
   test "error returned" do
-    with_mock HTTPoison, get: fn _, _, _ -> {:error, "error message"} end do
+    with_mock Req, get: fn  url, _ -> {:error, "error message"} end do
       assert {:error, _} = FetchFavicon.fetch("reddit.com")
     end
   end
 
   test "first call fails" do
-    base_site_response = %HTTPoison.Response{
+    base_site_response = %{
       body: "<html><link href=\"/custom/reddit/ico/path/icon.ico\" rel=\"shortcut icon\"></html>",
       headers: [
-        {"Content-Type", "text/html; charset=UTF-8"},
-        {"Content-Length", "non zero"}
+        {"content-type", "text/html; charset=UTF-8"},
+        {"content-length", "non zero"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    image_response = %HTTPoison.Response{
+    image_response = %{
       body: "some valid image",
       headers: [
-        {"Content-Type", "image/x-icon"},
-        {"Content-Length", "non zero"}
+        {"content-type", "image/x-icon"},
+        {"content-length", "non zero"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
-            {:error, "error messsage"}
+            {:error, "404"}
 
           "http://reddit.com" ->
             {:ok, base_site_response}
@@ -48,8 +47,9 @@ defmodule FetchFaviconTest do
           "http://reddit.com/custom/reddit/ico/path/icon.ico" ->
             {:ok, image_response}
 
-          _ ->
-            nil
+          other ->
+            # IO.inspect(other)
+            {:error, "404"}
         end
       end do
       assert {:ok, _} = FetchFavicon.fetch("reddit.com")
@@ -57,18 +57,17 @@ defmodule FetchFaviconTest do
   end
 
   test "trailing slash" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "<html></html>",
       headers: [
-        {"Content-Type", "image/x-icon"},
-        {"Content-Length", "non zero"}
+        {"content-type", "image/x-icon"},
+        {"content-length", "non zero"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:ok, response}
@@ -82,18 +81,18 @@ defmodule FetchFaviconTest do
   end
 
   test "not image" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "<html></html>",
       headers: [
-        {"Content-Type", "text/html; charset=utf-8"},
-        {"Content-Length", "non zero"}
+        {"content-type", "text/html; charset=utf-8"},
+        {"content-length", "non zero"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req,
+      get: fn url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:ok, response}
@@ -107,19 +106,18 @@ defmodule FetchFaviconTest do
   end
 
   test "has encoding" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "<html></html>",
       headers: [
-        {"Content-Type", "text/html; charset=utf-8"},
-        {"Content-Length", "non zero"},
-        {"Content-Encoding", "gzip"}
+        {"content-type", "text/html; charset=utf-8"},
+        {"content-length", "non zero"},
+        {"content-encoding", "gzip"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:ok, response}
@@ -133,18 +131,17 @@ defmodule FetchFaviconTest do
   end
 
   test "content length 0" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "",
       headers: [
-        {"Content-Type", "image/png"},
-        {"Content-Length", "0"}
+        {"content-type", "image/png"},
+        {"content-length", "0"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:ok, response}
@@ -158,19 +155,18 @@ defmodule FetchFaviconTest do
   end
 
   test "invalid image" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAGXR
       FWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA99JREFUeNrsG4t1ozDMzQSM4A2ODUo9nKB
       ucN2hugtIJ6E1AboLcBiQTkJsANiAb9OCd/OpzMWBJBl5TvaeXPiiyJetry0J8wW3wefawefN4II=\n",
       headers: [
-        {"Content-Type", "image/png"}
+        {"content-type", "image/png"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:error, "error message"}
@@ -187,15 +183,14 @@ defmodule FetchFaviconTest do
   end
 
   test "www" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "<html></html>",
-      headers: [{"Content-Type", "image/png"}, {"Content-Length", "non zero"}],
-      request_url: "",
-      status_code: 200
+      headers: [{"content-type", "image/png"}, {"content-length", "non zero"}],
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req, get: fn  url, _ ->
         case url do
           "http://www.reddit.com/favicon.ico" ->
             {:ok, response}
@@ -209,18 +204,18 @@ defmodule FetchFaviconTest do
   end
 
   test "first and second calls fail" do
-    response = %HTTPoison.Response{
+    response = %{
       body: "image",
       headers: [
-        {"Content-Type", "image/x-icon"},
-        {"Content-Length", "non zero"}
+        {"content-type", "image/x-icon"},
+        {"content-length", "non zero"}
       ],
-      request_url: "",
-      status_code: 200
+      # request_url: "",
+      status: 200
     }
 
-    with_mock HTTPoison,
-      get: fn url, _, _ ->
+    with_mock Req,
+      get: fn url, _ ->
         case url do
           "http://reddit.com/favicon.ico" ->
             {:error, "error messsage"}

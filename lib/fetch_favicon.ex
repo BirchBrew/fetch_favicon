@@ -19,14 +19,20 @@ defmodule FetchFavicon do
   """
 
   @doc """
-  Fetch the binary contents of a favicon file for a domain
+  Fetch the binary contents of a favicon file for a domain 
   """
   def fetch(url) do
-    absolute_url = get_absolute_path(url)
+    get(url, true)
+  end
+
+  @doc """
+  Get the URL contents of a favicon file for a domain (or fetch its binary contents by setting the fetch? param to true)
+  """
+  def get(url, fetch? \\ false) do
+    {absolute_url, host} = process_uri(url)
 
     with {:ok, image} <-
-           fetch_default(absolute_url) || fetch_from_html(absolute_url) ||
-             fetch_from_google(url) do
+           fetch_default(absolute_url, fetch?) || fetch_from_third_parties(host, fetch?) || fetch_from_html(absolute_url, fetch?) do
       {:ok, image}
     else
       e ->
@@ -35,21 +41,15 @@ defmodule FetchFavicon do
   end
 
   @doc """
-  Find a favicon URL (or fetch its binary contents)
+  Find a favicon URL (or fetch its binary contents by setting the fetch? param to true)
   Parses an HTML page and tries to find a favicon in it (if provided), and otherwise tries other techniques
   """
   def find(url, html_body, fetch? \\ false) do
-    absolute_url = get_absolute_path(url)
-    # IO.inspect(html_body)
-
-    with {:ok, image_or_url} <-
-           parse(url, html_body, fetch?) || fetch_default(absolute_url, fetch?) ||
-             fetch_from_html(absolute_url, fetch?) ||
-             fetch_from_google(url, fetch?) do
+    with {:ok, image_or_url} <- parse(url, html_body, fetch?) || get(url, fetch?) do
       {:ok, image_or_url}
     else
       _ ->
-        {:error, "failed to find image"}
+        {:error, "failed to find favicon"}
     end
   end
 
@@ -66,8 +66,8 @@ defmodule FetchFavicon do
   end
 
   defp fetch_default(url, fetch? \\ true) do
-    favicon_url = URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
-    check_url(favicon_url, fetch?)
+    URI.parse(url) |> URI.merge("/favicon.ico") |> to_string()
+    |> check_url(fetch?)
   end
 
   defp fetch_from_html(url, fetch? \\ true) do
@@ -78,16 +78,24 @@ defmodule FetchFavicon do
     end
   end
 
-  defp fetch_from_google(url, fetch? \\ true) do
-    google_favicon_url = "https://www.google.com/s2/favicons?domain=#{url}"
-    check_url(google_favicon_url, fetch?)
+  def fetch_from_third_parties(url, fetch? \\ true) do
+    fetch_from_duck_duck_go(url, fetch?) ||
+             fetch_from_google(url, fetch?)
+  end
+
+  defp fetch_from_duck_duck_go(domain, fetch? \\ true) do
+    check_url("https://icons.duckduckgo.com/ip3/#{domain}.ico", fetch?)
+  end
+
+  defp fetch_from_google(domain, fetch? \\ true) do
+    check_url("https://www.google.com/s2/favicons?domain=#{domain}", fetch?)
   end
 
   defp get_icon_path_html(body) do
     case Floki.find(body, "link[rel=icon]") do
       [] ->
         case Floki.find(body, "link[rel*=icon]") do
-          [] ->
+          [] -> 
             nil
 
           links ->
@@ -111,44 +119,45 @@ defmodule FetchFavicon do
 
   defp get_image_from_url(url) do
     case get_html(url) do
-      {:ok, %HTTPoison.Response{body: ""}} ->
+      {:ok, %{body: ""}} ->
         nil
 
-      {:ok, %HTTPoison.Response{body: body, headers: headers_list}} ->
+      {:ok, %{body: body, headers: headers_list}} ->
         case Enum.into(headers_list, %{}) do
-          %{"Content-Encoding" => _encoding} -> nil
-          %{"Content-Type" => "image" <> _} -> {:ok, body}
+          %{"content-encoding" => _encoding} -> nil
+          %{"content-type" => "image" <> _} -> {:ok, body}
           _ -> nil
         end
 
-      _ ->
+      other ->
+        debug(other, url)
         nil
     end
   end
 
   defp get_valid_image_url(url) do
     case get_headers(url) do
-      {:ok, %HTTPoison.Response{headers: headers_list}} ->
+      {:ok, %{headers: headers_list}} ->
         # IO.inspect(headers_list)
         case Enum.into(headers_list, %{}) do
-          %{"Content-Type" => "image" <> _} -> {:ok, url}
+          %{"content-type" => "image" <> _} -> {:ok, url}
           _ -> nil
         end
 
       # |> IO.inspect(label: "get_valid_image_url")
 
-      _ ->
+      other ->
+        debug(other, url)
         nil
     end
   end
 
   defp get_html_from_url(url) do
     case get_html(url) do
-      {:ok, response} ->
-        %HTTPoison.Response{body: body, headers: headers_list} = response
+      {:ok, %{body: body, headers: headers_list}} ->
 
         case Enum.into(headers_list, %{}) do
-          %{"Content-Type" => "text/html" <> _} -> {:ok, body}
+          %{"content-type" => "text/html" <> _} -> {:ok, body}
           _ -> nil
         end
 
@@ -160,28 +169,29 @@ defmodule FetchFavicon do
   defp get_html(url) do
     if full_uri?(url) do
       case {_code, response} =
-             HTTPoison.get(
+             Req.get(
                url,
-               %{"User-Agent" => @user_agent},
-               recv_timeout: @timeout_ms,
-               follow_redirect: true
+               user_agent: @user_agent,
+               receive_timeout: @timeout_ms,
+               max_redirects: 3
              ) do
-        {:ok, %{status_code: 200}} -> {:ok, response}
+        {:ok, %{status: 200}} -> {:ok, response}
         _ -> nil
       end
     end
   end
 
   defp get_headers(url) do
-    if full_uri?(url) do
+    if full_uri?(url)  do
       case {_code, response} =
-             HTTPoison.head(
+             Req.head(
                url,
-               %{"User-Agent" => @user_agent},
-               recv_timeout: @timeout_ms,
-               follow_redirect: true
+               user_agent: @user_agent,
+               receive_timeout: @timeout_ms,
+               max_redirects: 3,
+               raw: true
              ) do
-        {:ok, %{status_code: 200}} -> {:ok, response}
+        {:ok, %{status: 200}} -> {:ok, response}
         _ -> nil
       end
     end
@@ -204,10 +214,10 @@ defmodule FetchFavicon do
     end
   end
 
-  defp get_absolute_path(url) do
+  defp process_uri(url) do
     case URI.parse(url) do
-      %{host: nil, path: path} -> "http://#{path}"
-      _ -> url
+      %{host: nil, path: path_as_host} -> {"http://#{path_as_host}", path_as_host}
+      %{host: host} -> {url, host}
     end
   end
 

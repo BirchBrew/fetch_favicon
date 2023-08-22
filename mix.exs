@@ -23,7 +23,7 @@ defmodule FetchFavicon.MixProject do
   defp deps do
     [
       # HTTP Client
-      {:httpoison, "~> 1.0"},
+      {:req, "~> 0.3"},
       # HTML Parser
       {:floki, "~> 0.20.0"},
       # error handling
