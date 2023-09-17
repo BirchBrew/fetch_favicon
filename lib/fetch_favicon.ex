@@ -173,7 +173,8 @@ defmodule FetchFavicon do
                url,
                user_agent: @user_agent,
                receive_timeout: @timeout_ms,
-               max_redirects: 3
+               max_redirects: 3,
+               adapter: Process.get(:req_adapter) || &Req.Steps.run_finch/1 # for mocks during testing
              ) do
         {:ok, %{status: 200}} -> {:ok, response}
         _ -> nil
