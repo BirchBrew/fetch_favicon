@@ -27,7 +27,7 @@ defmodule FetchFavicon.MixProject do
       # HTML Parser
       {:floki, "~> 0.20.0"},
       # error handling
-      {:untangle, "~> 0.0.1"},
+      {:untangle, "~> 0.3"},
       # For testing
       {:mock, "~> 0.3.0", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev}
