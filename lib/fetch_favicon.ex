@@ -181,6 +181,9 @@ defmodule FetchFavicon do
         _ -> nil
       end
     end
+  rescue e in RuntimeError ->
+    error(e)
+    nil
   end
 
   defp get_headers(url) do
