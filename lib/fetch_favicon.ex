@@ -28,7 +28,8 @@ defmodule FetchFavicon do
   @doc """
   Get the URL contents of a favicon file for a domain (or fetch its binary contents by setting the fetch? param to true)
   """
-  def get(url, fetch? \\ false) do
+  def get(url, fetch? \\ false) 
+  def get(url, fetch?) when is_binary(url) do
     {absolute_url, host} = process_uri(url)
 
     with {:ok, image} <-
@@ -39,6 +40,7 @@ defmodule FetchFavicon do
         error(e, "failed to find favicon for #{url}")
     end
   end
+  def get(url, fetch?), do: {:error, :invalid_uri}
 
   @doc """
   Find a favicon URL (or fetch its binary contents by setting the fetch? param to true)
@@ -219,7 +221,7 @@ defmodule FetchFavicon do
     end
   end
 
-  defp process_uri(url) do
+  defp process_uri(url) when is_binary(url) do
     case URI.parse(url) do
       %{host: nil, path: path_as_host} -> {"http://#{path_as_host}", path_as_host}
       %{host: host} -> {url, host}
