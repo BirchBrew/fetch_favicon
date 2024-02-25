@@ -25,7 +25,7 @@ defmodule FetchFavicon.MixProject do
       # HTTP Client
       {:req, "~> 0.3"},
       # HTML Parser
-      {:floki, "~> 0.20.0"},
+      {:floki, "~> 0.32"},
       # error handling
       {:untangle, "~> 0.3"},
       # For testing
